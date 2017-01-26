@@ -1,0 +1,51 @@
+global
+  log /dev/log daemon
+  maxconn 32768
+  chroot /var/lib/haproxy
+  user haproxy
+  group haproxy
+  daemon
+  stats socket /var/lib/haproxy/stats user haproxy group haproxy mode 0640 level operator
+  tune.bufsize 32768
+  tune.ssl.default-dh-param 2048
+  ssl-default-bind-ciphers ALL:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK:!RC4:!ADH:!LOW@STRENGTH
+
+defaults
+  log     global
+  mode    http
+  option  log-health-checks
+  option  log-separate-errors
+  option  dontlog-normal
+  option  dontlognull
+  option  httplog
+  option  socket-stats
+  retries 3
+  option  redispatch
+  maxconn 10000
+  timeout connect     5s
+  timeout client     50s
+  timeout server    450s
+
+frontend front
+  bind 0.0.0.0:80
+  acl upper path_reg ^/[A-Z/]+$
+  acl digit path_reg ^/[0-9/]+$
+  use_backend {{ upper.name }} if upper
+  use_backend {{ digit.name }} if digit
+  default_backend 404
+
+backend {{ upper.name }}
+  server {{ upper.name }} 127.0.0.1:{{ upper.nginx_port}}
+
+backend {{ digit.name }}
+  server {{ digit.name }} 127.0.0.1:{{ digit.nginx_port}}
+
+backend 404
+  errorfile 503 /var/www/haproxy/404.html
+
+listen stats
+  bind 0.0.0.0:8080
+  stats enable
+  stats uri     /
+  stats refresh 5s
+  rspadd Server:\ haproxy/1.6

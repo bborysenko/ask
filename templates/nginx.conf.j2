@@ -1,0 +1,11 @@
+server {
+    listen       localhost:{{ item.nginx_port }};
+    server_name  _;
+    access_log  /var/log/nginx/{{ item.name }}.log  main;
+    root   {{ item.nginx_root }};
+    
+    location / {
+        try_files $uri /index.html;
+    }
+}
+

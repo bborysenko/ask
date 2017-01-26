@@ -1,0 +1,9 @@
+[bborysenko_ask]
+name=bborysenko_ask
+baseurl=https://packagecloud.io/bborysenko/ask/opensuse/42.1/$basearch
+repo_gpgcheck=1
+pkg_gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/bborysenko/ask/gpgkey
+autorefresh=1
+type=rpm-md

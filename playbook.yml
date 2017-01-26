@@ -1,0 +1,107 @@
+---
+- hosts: all
+  vars:
+    upper:
+      name: upper
+      nginx_port: 8081
+      nginx_root: /var/www/upper
+    digit:
+      name: digit
+      nginx_port: 8082
+      nginx_root: /var/www/digit
+  handlers:
+    - name: zypper refresh
+      shell: zypper --gpg-auto-import-keys refresh bborysenko_ask
+    - name: nginx restart
+      service: name=nginx state=restarted
+    - name: haproxy restart
+      service: name=haproxy state=restarted
+  tasks:
+    - name: remove kernel-check from cron
+      lineinfile: 
+        dest: /etc/cron.d/daily
+        line: "* * * * * root /usr/bin/kernel-check"
+        state: absent
+
+    - name: add repository
+      copy:
+        src: files/bborysenko_ask.repo
+        dest: /etc/zypp/repos.d/bborysenko_ask.repo
+        mode: 0644
+      notify:
+      - zypper refresh
+
+    - meta: flush_handlers
+
+    - name: install nginx and haproxy
+      zypper:
+        name: "{{ item }}"
+      with_items:
+        - nginx
+        - haproxy
+
+    - name: enable nginx and haproxy services
+      service:
+        name: "{{ item }}"
+        enabled: yes
+      with_items:
+        - nginx
+        - haproxy
+
+    - name: create nginx root direcrotires
+      file:
+        path: "{{ item.nginx_root }}"
+        state: directory
+        recurse: yes
+        mode: 0755
+      with_items:
+        - "{{ upper }}"
+        - "{{ digit }}"
+
+    - name: create nginx index files
+      lineinfile:
+        dest: "{{ item.nginx_root }}/index.html"
+        line: "{{ item.name }}"
+        create: yes
+      with_items:
+        - "{{ upper }}"
+        - "{{ digit }}"
+
+    - name: remove default nginx config
+      file: 
+        path: /etc/nginx/conf.d/default.conf
+        state: absent
+    
+    - name: create nginx config
+      template:
+        src: templates/nginx.conf.j2
+        dest: "/etc/nginx/conf.d/{{ item.name }}.conf"
+        mode: 0644
+      with_items:
+        - "{{ upper }}"
+        - "{{ digit }}"
+      notify:
+      - nginx restart
+
+    - name: create directpory for haproxy error pages
+      file:
+        path: /var/www/haproxy/
+        state: directory
+        recurse: yes
+        mode: 0755
+
+    - name: create haproxy error page for 404
+      copy:
+        src: files/404.html
+        dest: /var/www/haproxy/404.html
+        mode: 0644
+      
+    - name: create haproxy config
+      template:
+        src: templates/haproxy.cfg.j2
+        dest: "/etc/haproxy/haproxy.cfg"
+        mode: 0644
+      notify:
+      - haproxy restart
+
+  
